@@ -363,7 +363,7 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 			wgClusters.Add(1)
 
 			go func(startIndex, endIndex int, wgClusters *sync.WaitGroup) {
-				batch := k.trainingSet[i:min(i+chunkSize, len(k.trainingSet))]
+				batch := k.trainingSet[startIndex:endIndex]
 				classCountsLocal := make([]int64, centroids)
 				classTotalLocal := make([][]float64, centroids)
 
