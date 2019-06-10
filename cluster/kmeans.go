@@ -278,6 +278,10 @@ func min(a, b int) int {
 	return b
 }
 
+func (k *KMeans) Learn() error {
+	return k.LearnParallel(1)
+}
+
 // Learn takes the struct's dataset and expected results and runs
 // batch gradient descent on them, optimizing theta so you can
 // predict based on those results
@@ -287,7 +291,7 @@ func min(a, b int) int {
 // model than regular, randomized instantiation of
 // centroids.
 // Paper: http://ilpubs.stanford.edu:8090/778/1/2006-13.pdf
-func (k *KMeans) Learn(numParallel int) error {
+func (k *KMeans) LearnParallel(numParallel int) error {
 	if k.trainingSet == nil {
 		err := fmt.Errorf("ERROR: Attempting to learn with no training examples!\n")
 		fmt.Fprintf(k.Output, err.Error())
