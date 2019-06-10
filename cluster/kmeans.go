@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/cdipaolo/goml/base"
@@ -270,6 +271,13 @@ func (k *KMeans) Predict(x []float64, normalize ...bool) ([]float64, error) {
 	return []float64{float64(guess)}, nil
 }
 
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
 // Learn takes the struct's dataset and expected results and runs
 // batch gradient descent on them, optimizing theta so you can
 // predict based on those results
@@ -279,7 +287,7 @@ func (k *KMeans) Predict(x []float64, normalize ...bool) ([]float64, error) {
 // model than regular, randomized instantiation of
 // centroids.
 // Paper: http://ilpubs.stanford.edu:8090/778/1/2006-13.pdf
-func (k *KMeans) Learn() error {
+func (k *KMeans) Learn(numParallel int) error {
 	if k.trainingSet == nil {
 		err := fmt.Errorf("ERROR: Attempting to learn with no training examples!\n")
 		fmt.Fprintf(k.Output, err.Error())
@@ -326,6 +334,8 @@ func (k *KMeans) Learn() error {
 
 	}
 
+	chunkSize := len(k.trainingSet) / numParallel
+
 	iter := 0
 	for ; iter < k.maxIterations; iter++ {
 
@@ -340,22 +350,54 @@ func (k *KMeans) Learn() error {
 			classTotal[j] = make([]float64, features)
 		}
 
-		for i, x := range k.trainingSet {
-			k.guesses[i] = 0
-			minDiff := diff(x, k.Centroids[0])
-			for j := 1; j < len(k.Centroids); j++ {
-				difference := diff(x, k.Centroids[j])
-				if difference < minDiff {
-					minDiff = difference
-					k.guesses[i] = j
-				}
-			}
+		// Create chunks
+		var wgClusters = sync.WaitGroup{}
+		var lock sync.Mutex
+		for i := 0; i < len(k.trainingSet); i += chunkSize {
+			startIndex := i
+			endIndex := min(i+chunkSize, len(k.trainingSet))
+			wgClusters.Add(1)
 
-			classCount[k.guesses[i]]++
-			for j := range x {
-				classTotal[k.guesses[i]][j] += x[j]
-			}
+			go func(startIndex, endIndex int, wgClusters *sync.WaitGroup) {
+				batch := k.trainingSet[i:min(i+chunkSize, len(k.trainingSet))]
+				classCountsLocal := make([]int64, centroids)
+				classTotalLocal := make([][]float64, centroids)
+
+				for j := range k.Centroids {
+					classTotalLocal[j] = make([]float64, features)
+				}
+
+				for i, x := range batch {
+					k.guesses[i] = 0
+					minDiff := diff(x, k.Centroids[0])
+					for j := 1; j < len(k.Centroids); j++ {
+						difference := diff(x, k.Centroids[j])
+						if difference < minDiff {
+							minDiff = difference
+							k.guesses[i] = j
+						}
+					}
+
+					classCountsLocal[k.guesses[i]]++
+					for j := range x {
+						classTotalLocal[k.guesses[i]][j] += x[j]
+					}
+				}
+
+				lock.Lock()
+				for i, _ := range classCountsLocal {
+					classCount[i] += classCountsLocal[i]
+				}
+				for i, _ := range classTotalLocal {
+					for j, _ := range classTotalLocal[i] {
+						classTotal[i][j] += classTotalLocal[i][j]
+					}
+				}
+				lock.Unlock()
+				wgClusters.Done()
+			}(startIndex, endIndex, &wgClusters)
 		}
+		wgClusters.Wait()
 
 		newCentroids := append([][]float64{}, k.Centroids...)
 		for j := range k.Centroids {
