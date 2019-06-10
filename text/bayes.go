@@ -85,7 +85,7 @@ import (
 
 	"golang.org/x/text/transform"
 
-	"github.com/cdipaolo/goml/base"
+	"github.com/Fabse333/goml/base"
 )
 
 /*

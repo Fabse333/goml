@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cdipaolo/goml/base"
+	"github.com/Fabse333/goml/base"
 
 	"github.com/stretchr/testify/assert"
 )

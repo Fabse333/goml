@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cdipaolo/goml/base"
+	"github.com/Fabse333/goml/base"
 )
 
 // diff returns the square magnitude of the
