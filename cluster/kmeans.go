@@ -347,8 +347,8 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 		//
 		// store counts when assigning classes
 		// so you won't have to sum them again later
-		classTotal := make([][]float64, centroids)
-		classCount := make([]int64, centroids)
+		classTotal := make([][]float64, centroids) // Total addition of this class
+		classCount := make([]int64, centroids)     // Count how many elements are in this class
 
 		for j := range k.Centroids {
 			classTotal[j] = make([]float64, features)
@@ -372,19 +372,20 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 				}
 
 				for i, x := range batch {
-					k.guesses[i] = 0
+					idx_trainingsset := startIndex + i
+					k.guesses[idx_trainingsset] = 0
 					minDiff := diff(x, k.Centroids[0])
 					for j := 1; j < len(k.Centroids); j++ {
 						difference := diff(x, k.Centroids[j])
 						if difference < minDiff {
 							minDiff = difference
-							k.guesses[i] = j
+							k.guesses[idx_trainingsset] = j
 						}
 					}
 
-					classCountsLocal[k.guesses[i]]++
+					classCountsLocal[k.guesses[idx_trainingsset]]++
 					for j := range x {
-						classTotalLocal[k.guesses[i]][j] += x[j]
+						classTotalLocal[k.guesses[idx_trainingsset]][j] += x[j]
 					}
 				}
 
