@@ -12,11 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	circles [][]float64
-	double  [][]float64
-)
-
 func init() {
 	circles = [][]float64{}
 	for i := -12.0; i < -8; i += 0.2 {
