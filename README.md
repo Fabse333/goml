@@ -1,4 +1,7 @@
 ## `goml`
+### About this Fork
+This fork implements multithreading for the kmeans implmentation. Use LearnParallel(NumGoFunctions) instead of Learn. Also adopted kmeans++ instantiation to support multithreading. Tested with 128 cores.
+
 ### Golang Machine Learning, On The Wire
 
 [![GoDoc](https://godoc.org/github.com/Fabse333/goml?status.svg)](https://godoc.org/github.com/Fabse333/goml)

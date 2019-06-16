@@ -313,21 +313,43 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 	// instantiate the centroids using k-means++
 	k.Centroids[0] = k.trainingSet[rand.Intn(len(k.trainingSet))]
 
+	chunkSize := len(k.trainingSet) / numParallel
+
 	distances := make([]float64, len(k.trainingSet))
 	for i := 1; i < len(k.Centroids); i++ {
 		var sum float64
-		for j, x := range k.trainingSet {
-			minDiff := diff(x, k.Centroids[0])
-			for l := 1; l < i; l++ {
-				difference := diff(x, k.Centroids[l])
-				if difference < minDiff {
-					minDiff = difference
-				}
-			}
 
-			distances[j] = minDiff * minDiff
-			sum += distances[j]
+		// Create chunks
+		var wgClusters = sync.WaitGroup{}
+		var lock sync.Mutex
+		for j := 0; j < len(k.trainingSet); j += chunkSize {
+			startIndex := j
+			endIndex := min(j+chunkSize, len(k.trainingSet))
+			wgClusters.Add(1)
+			go func(startIndex, endIndex, i int, lock *sync.Mutex, wgClusters *sync.WaitGroup) {
+				batch := k.trainingSet[startIndex:endIndex]
+				var sum_local float64
+
+				for h, x := range batch {
+					idx_trainingsset := startIndex + h
+					minDiff := diff(x, k.Centroids[0])
+					for l := 1; l < i; l++ {
+						difference := diff(x, k.Centroids[l])
+						if difference < minDiff {
+							minDiff = difference
+						}
+					}
+
+					distances[idx_trainingsset] = minDiff * minDiff
+					sum_local += distances[idx_trainingsset]
+				}
+				lock.Lock()
+				sum += sum_local
+				lock.Unlock()
+				wgClusters.Done()
+			}(startIndex, endIndex, i, &lock, &wgClusters)
 		}
+		wgClusters.Wait()
 
 		target := rand.Float64() * sum
 		j := 0
@@ -335,10 +357,7 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 			j++
 		}
 		k.Centroids[i] = k.trainingSet[j]
-
 	}
-
-	chunkSize := len(k.trainingSet) / numParallel
 
 	iter := 0
 	for ; iter < k.maxIterations; iter++ {
@@ -362,7 +381,7 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 			endIndex := min(i+chunkSize, len(k.trainingSet))
 			wgClusters.Add(1)
 
-			go func(startIndex, endIndex int, wgClusters *sync.WaitGroup) {
+			go func(startIndex, endIndex int, lock *sync.Mutex, wgClusters *sync.WaitGroup) {
 				batch := k.trainingSet[startIndex:endIndex]
 				classCountsLocal := make([]int64, centroids)
 				classTotalLocal := make([][]float64, centroids)
@@ -400,7 +419,7 @@ func (k *KMeans) LearnParallel(numParallel int) error {
 				}
 				lock.Unlock()
 				wgClusters.Done()
-			}(startIndex, endIndex, &wgClusters)
+			}(startIndex, endIndex, &lock, &wgClusters)
 		}
 		wgClusters.Wait()
 
