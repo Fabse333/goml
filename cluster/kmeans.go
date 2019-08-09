@@ -642,6 +642,22 @@ func (k *KMeans) Distortion() float64 {
 	return sum
 }
 
+// Distortion returns the distortion of the clustering
+// currently given by the k-means model. This is the
+// function the learning algorithm tries to minimize.
+//
+// Distorition() = Σ |x[i] - μ[c[i]]|^2
+// over all provided examples
+func (k *KMeans) DistortionOfData(data [][]float64) float64 {
+	var sum float64
+	for i := range data {
+		clusterIdx, _ := k.Predict(data[i])
+		sum += diff(data[i], k.Centroids[int(clusterIdx[0])])
+	}
+
+	return sum
+}
+
 // SaveClusteredData takes operates on a k-means
 // model, concatenating the given dataset with the
 // assigned class from clustering and saving it to
